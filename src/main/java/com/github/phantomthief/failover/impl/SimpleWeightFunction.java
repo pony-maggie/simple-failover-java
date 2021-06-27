@@ -3,6 +3,8 @@ package com.github.phantomthief.failover.impl;
 /**
  * @author huangli
  * Created on 2020-01-20
+ *
+ * SimpleWeightFunction 用不到父类的recoverCountMap
  */
 public class SimpleWeightFunction<T> extends AbstractWeightFunction<T> {
 

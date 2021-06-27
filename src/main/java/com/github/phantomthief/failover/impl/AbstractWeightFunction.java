@@ -12,6 +12,7 @@ public abstract class AbstractWeightFunction<T> implements WeightFunction<T> {
 
     private final int recoverThreshold;
 
+    //统计T的个数
     private final ConcurrentHashMap<T, Integer> recoverCountMap;
 
     public AbstractWeightFunction() {

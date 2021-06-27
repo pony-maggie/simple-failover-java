@@ -22,6 +22,10 @@ import com.google.common.collect.RangeMap;
  */
 public class Weight<T> {
 
+    /**
+     * 关于rangemap
+     * https://www.jianshu.com/p/e5401973a3e7
+     */
     private final Map<T, Long> weightMap = new HashMap<>();
     private final RangeMap<Long, T> nodes = create();
     private long maxWeight = 0;

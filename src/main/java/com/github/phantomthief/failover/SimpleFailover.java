@@ -15,6 +15,12 @@ import javax.annotation.Nullable;
  * @author huangli
  * Created on 2020-01-15
  */
+
+/**
+ * 关于 AutoCloseable
+ * https://www.cnblogs.com/vivotech/p/13886291.html
+ * @param <T>
+ */
 public interface SimpleFailover<T> extends AutoCloseable {
 
     /**
