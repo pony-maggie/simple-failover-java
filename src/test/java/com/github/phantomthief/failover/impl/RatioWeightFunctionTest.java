@@ -12,6 +12,9 @@ public class RatioWeightFunctionTest {
 
     @Test
     public void testFail1() {
+        /**
+         * 每次失败后只保留当前权重的0.5，成功后增加最大权重的0.01
+         */
         RatioWeightFunction<String> f = new RatioWeightFunction<>(0.5, 0.01);
         assertEquals(0.5, f.fail(1, 0, 0, 1, "R1"));
         assertEquals(0.25, f.fail(1, 0, 0, 0.5, "R1"));

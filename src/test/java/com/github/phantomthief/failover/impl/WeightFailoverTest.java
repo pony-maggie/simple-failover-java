@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -51,6 +52,8 @@ class WeightFailoverTest {
         Failover<String> failover = WeightFailover.newBuilder()
                 .checker(this::check, 1)
                 .build(original);
+
+
         Multiset<String> result = HashMultiset.create();
         Multiset<Integer> getCount = HashMultiset.create();
         for (int i = 0; i < 500; i++) {
@@ -63,6 +66,10 @@ class WeightFailoverTest {
                     result.add(obj);
                 }
             });
+            /**
+             * 关于sleepUninterruptibly
+             * https://stackoverflow.com/questions/14195929/is-thread-sleep1000-something-reliable-to-use/14196055
+             */
             sleepUninterruptibly(10, MILLISECONDS);
         }
 
@@ -80,6 +87,7 @@ class WeightFailoverTest {
                 .minWeight(1)
                 .onMinWeight(i -> System.out.println("onMin:" + i))
                 .build(original);
+
         Multiset<String> result = HashMultiset.create();
         Multiset<Integer> getCount = HashMultiset.create();
         for (int i = 0; i < 500; i++) {
@@ -102,10 +110,12 @@ class WeightFailoverTest {
     void testDown() {
         List<String> original = Arrays.asList("1", "2", "3");
         Failover<String> failover = WeightFailover.<String> newGenericBuilder()
-                .checker(it -> false, 1)
+                .checker(this::checkFalse, 1)
                 .onMinWeight(i -> System.out.println("onMin:" + i))
                 .build(original);
-        failover.down("1");
+
+        failover.down("1");//停掉1节点
+
         for (int i = 0; i < 500; i++) {
             String available = failover.getOneAvailable();
             assertNotEquals(available, "1");
@@ -134,13 +144,17 @@ class WeightFailoverTest {
         WeightFailover<String> failover = WeightFailover.<String> newGenericBuilder()
                 .checker(it -> true, 1)
                 .build(map);
+
         Multiset<String> counter = HashMultiset.create();
         int trials = 100000;
+        //看下被获取的节点概率是否跟权重大小一致
         for (int i = 0; i < trials; i++) {
             String oneAvailable = failover.getOneAvailable();
+//            System.out.println(oneAvailable);
             counter.add(oneAvailable.substring(0, 1));
         }
         System.out.println(counter);
+        //二项分布校验
         assertFalse(new BinomialTest().binomialTest(trials, counter.count("i"), iSum / sum,
                 TWO_SIDED, 0.01));
     }
@@ -150,11 +164,15 @@ class WeightFailoverTest {
         WeightFailover<String> failover = WeightFailover.<String> newGenericBuilder()
                 .checker(it -> 0.5)
                 .build(of("s1", "s2"), 100);
+
         assertEquals(100, failover.currentWeight("s1"));
         assertEquals(100, failover.currentWeight("s2"));
         failover.down("s2");
+
         assertEquals(0, failover.currentWeight("s2"));
-        sleepUninterruptibly(2, SECONDS);
+
+        sleepUninterruptibly(2, SECONDS);//健康检查，恢复节点，但是只能恢复到初始权重的一半
+
         assertEquals(50, failover.currentWeight("s2"));
     }
 
@@ -235,11 +253,20 @@ class WeightFailoverTest {
         assertTrue(checkRatio(result.count("s3"), result.count("s1"), 3));
     }
 
+    /**
+     * 在真实环境中，这里可以是一个connection，真实的检测通讯环境
+     */
     private boolean check(String test) {
-        System.out.println("test:" + test);
+        System.out.println("test true:" + test);
         return true;
     }
 
+    private boolean checkFalse(String test) {
+        System.out.println("test false:" + test);
+        return false;
+    }
+
+    //随机进行成功和失败
     private boolean doSomething(String obj, Failover<String> failover) {
         boolean result = ThreadLocalRandom.current().nextInt(10) > Integer.parseInt(obj);
         if (result) {

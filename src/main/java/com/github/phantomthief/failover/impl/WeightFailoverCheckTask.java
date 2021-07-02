@@ -134,7 +134,7 @@ class WeightFailoverCheckTask<T> {
                 if (weight == 0) {
                     double recoverRate = builder.checker.applyAsDouble(obj);
                     if (recoverRate > 0) {
-                        recoveredObjects.put(obj, recoverRate);
+                        recoveredObjects.put(obj, recoverRate);//如果心跳成功，恢复失败的节点
                     }
                 }
             });
@@ -148,7 +148,7 @@ class WeightFailoverCheckTask<T> {
                 }
                 int recoveredWeight = constrainToRange((int) (initWeight * rate), 1,
                         initWeight);
-                currentWeightMap.put(recovered, recoveredWeight);
+                currentWeightMap.put(recovered, recoveredWeight);//节点恢复了，重新放回去
                 allAvailableVersion.incrementAndGet();
                 if (builder.onRecovered != null) {
                     builder.onRecovered.accept(recovered);

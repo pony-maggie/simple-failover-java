@@ -10,6 +10,7 @@ public abstract class AbstractWeightFunction<T> implements WeightFunction<T> {
 
     public static final int DEFAULT_RECOVER_THRESHOLD = 1;
 
+    //探活的时候，几次探活成功开始增加权重
     private final int recoverThreshold;
 
     //统计T的个数

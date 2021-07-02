@@ -38,6 +38,9 @@ public class WeightFailoverBuilder<T> {
     private static final int DEFAULT_INIT_WEIGHT = 100;
     private static final int DEFAULT_FAIL_REDUCE_WEIGHT = 5;
     private static final int DEFAULT_SUCCESS_INCREASE_WEIGHT = 1;
+    /**
+     * 注意学习这种用法，可读性高，而且不用自己各种乘除1000,还要转换
+     */
     private static final long DEFAULT_CHECK_DURATION = SECONDS.toMillis(1);
 
     IntUnaryOperator failReduceWeight;
@@ -46,7 +49,7 @@ public class WeightFailoverBuilder<T> {
     Map<T, Integer> initWeightMap;
     ToDoubleFunction<T> checker;
     long checkDuration;
-    Consumer<T> onMinWeight;
+    Consumer<T> onMinWeight;//当权重下降到min weight时，执行的消费逻辑
     Consumer<T> onRecovered;
     int minWeight = 0;
     Integer weightOnMissingNode;
@@ -237,6 +240,7 @@ public class WeightFailoverBuilder<T> {
             checker(@Nonnull ThrowableFunction<? super E, Double, Throwable> failChecker) {
         checkNotNull(failChecker);
         WeightFailoverBuilder<E> thisBuilder = (WeightFailoverBuilder<E>) this;
+        //这里并不会马上执行，要等get调用才会执行
         thisBuilder.checker = t -> {
             try {
                 return failChecker.apply(t);
@@ -262,11 +266,13 @@ public class WeightFailoverBuilder<T> {
             @Nonnegative double recoveredInitRate) {
         checkArgument(recoveredInitRate >= 0 && recoveredInitRate <= 1);
         checkNotNull(failChecker);
+//        return checker(it -> failChecker.test(it) ? recoveredInitRate : 0);
         return checker(it -> failChecker.test(it) ? recoveredInitRate : 0);
     }
 
     /**
-     * 构造一个WeightFailover实例，使用100作为默认的初始/最大权重。WeightFailover没有区分初始权重和最大权重，初始权重和最大权重是相等的。
+     * 构造一个WeightFailover实例，使用100作为默认的初始/最大权重。
+     * WeightFailover没有区分初始权重和最大权重，初始权重和最大权重是相等的。
      * @param original 资源列表
      * @param <E> 资源类型
      * @return 构造出来的WeightFailover实例
@@ -287,6 +293,11 @@ public class WeightFailoverBuilder<T> {
     public <E> WeightFailover<E> build(Collection<? extends E> original, int initWeight) {
         checkNotNull(original);
         checkArgument(initWeight > 0);
+
+        /**
+         * tomap可以把list转为map
+         * https://www.concretepage.com/java/jdk-8/java-8-convert-list-to-map-using-collectors-tomap-example
+         */
         return build(original.stream().collect(toMap(identity(), i -> initWeight, (u, v) -> u)));
     }
 

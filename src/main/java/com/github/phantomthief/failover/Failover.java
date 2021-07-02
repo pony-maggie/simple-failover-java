@@ -57,7 +57,7 @@ public interface Failover<T> extends SimpleFailover<T> {
 
     /**
      * 获取一个可使用的资源，如果所有的资源都down了，可能会返回null，注意判空。
-     *
+     * 默认实现是随机获取，跟权重无关
      * @return 一个用于执行调用的资源
      */
     @Nullable

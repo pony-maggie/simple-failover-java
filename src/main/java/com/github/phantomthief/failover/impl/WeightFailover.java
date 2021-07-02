@@ -59,6 +59,15 @@ public class WeightFailover<T> implements Failover<T>, Closeable {
     private final ConcurrentMap<T, Integer> initWeightMap;
     private final ConcurrentMap<T, Integer> currentWeightMap;
     @SuppressWarnings("checkstyle:VisibilityModifier")
+    /**
+     * 关于supplier
+     * https://blog.csdn.net/qq_40574571/article/details/107781119
+     * get的时候才真正的加载，相当于是一种懒加载
+     * 关于 ScheduledFuture
+     * https://www.cnblogs.com/wxgblogs/p/5471315.html
+     *
+     *
+     */
     final CloseableSupplier<ScheduledFuture<?>> recoveryFuture;
     private final Consumer<T> onMinWeight;
     private final int minWeight;
@@ -114,6 +123,7 @@ public class WeightFailover<T> implements Failover<T>, Closeable {
 
     /**
      * 获取一个新的builder。
+     * 包装了WeightFailoverBuilder，提供类型检查
      * @param <E> 要构建的资源的类型
      * @return builder
      */
@@ -179,6 +189,10 @@ public class WeightFailover<T> implements Failover<T>, Closeable {
         allAvailableVersion.incrementAndGet();
     }
 
+    /**
+     * 直接把节点权重降到min weight，相当于直接下掉
+     * @param object 被调用的资源
+     */
     @Override
     public void down(T object) {
         if (object == null) {
@@ -270,8 +284,12 @@ public class WeightFailover<T> implements Failover<T>, Closeable {
         return getAvailable(n, emptySet());
     }
 
+    /**
+     * 这个算法有点看不懂？ left是啥
+     * 从算法上看，确实能保证权重小的获取的概率小
+     */
     private List<T> getAvailable(int n, Collection<T> exclusions) {
-        List<TwoTuple<T, Integer>> snapshot = new LinkedList<>();
+        List<TwoTuple<T, Integer>> snapshot = new LinkedList<>();//map在不断变化，所以先取快照
         int sum = 0;
         for (Entry<T, Integer> entry : currentWeightMap.entrySet()) {
             int thisWeight = entry.getValue();
@@ -314,6 +332,11 @@ public class WeightFailover<T> implements Failover<T>, Closeable {
 
     @Override
     public void success(T object) {
+        /**
+         * 这里为啥要用数组？因为Lambda表达式里用到了
+         *
+         * https://blog.csdn.net/qing_gee/article/details/104438986
+         */
         boolean[] availableChanged = { false };
         currentWeightMap.compute(object, (k, oldValue) -> {
             if (oldValue == null) {
@@ -326,7 +349,10 @@ public class WeightFailover<T> implements Failover<T>, Closeable {
                     initWeightMap.putIfAbsent(object, weightOnMissingNode);
                 }
             }
+            //initWeightMap是build的时候初始化的
             int initWeight = initWeightMap.get(k);
+            //successIncreaseWeight
+            int temp = oldValue + successIncreaseWeight.applyAsInt(initWeight);
             int weight = min(initWeight, oldValue + successIncreaseWeight.applyAsInt(initWeight));
             if (oldValue <= 0 && weight > 0) {
                 availableChanged[0] = true;
